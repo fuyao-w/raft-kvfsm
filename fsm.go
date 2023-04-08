@@ -35,6 +35,13 @@ type KvFSM struct {
 	configuration []raft.Configuration
 }
 
+func (k *KvFSM) BatchApply(entries []*raft.LogEntry) (resp []interface{}) {
+	for _, entry := range entries {
+		resp = append(resp, k.Apply(entry))
+	}
+	return
+}
+
 type KvSnapshot struct {
 	fsm *KvFSM
 }
@@ -130,6 +137,7 @@ func (k *KvFSM) ReStore(rc io.ReadCloser) (err error) {
 			n, err = r.Read(buf)
 			if err != nil {
 				if errors.Is(err, io.EOF) {
+					err = nil
 					panic(nil)
 				}
 				panic(err)
@@ -166,4 +174,12 @@ func (k *KvFSM) ReStore(rc io.ReadCloser) (err error) {
 		val := readFiled()
 		k.kv.Store(toStr(key), toStr(val))
 	}
+}
+
+func (k *KvFSM) Get(key string) (val string, err error) {
+	value, ok := k.kv.Load(key)
+	if !ok {
+		return "", nil
+	}
+	return value.(string), nil
 }
